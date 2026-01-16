@@ -26,7 +26,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-0(@i1w_f2+24^_dh_0zwr
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else ['*']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -57,7 +57,36 @@ MIDDLEWARE = [
 
 # CORS Settings
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if os.environ.get('CORS_ALLOWED_ORIGINS') else []
+# Remove empty strings from the list
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS if origin.strip()]
+
+# For development, allow common localhost origins if CORS_ALLOWED_ORIGINS is empty
+if not CORS_ALLOWED_ORIGINS and DEBUG:
+    CORS_ALLOWED_ORIGINS = [
+        'http://localhost:5173',  # Vite dev server
+        'http://localhost:3000',  # React dev server
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:3000',
+        'http://localhost:80',    # Docker frontend
+        'http://localhost',       # Docker frontend
+    ]
+
 CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True' if not CORS_ALLOWED_ORIGINS else False
+
+# Additional CORS settings for development
+if DEBUG:
+    CORS_ALLOW_CREDENTIALS = True
+    CORS_ALLOW_HEADERS = [
+        'accept',
+        'accept-encoding',
+        'authorization',
+        'content-type',
+        'dnt',
+        'origin',
+        'user-agent',
+        'x-csrftoken',
+        'x-requested-with',
+    ]
 ROOT_URLCONF = 'backend.urls'
 
 TEMPLATES = [
@@ -89,10 +118,21 @@ DATABASES = {
     }
 }
 
-# Use PostgreSQL if DATABASE_URL is provided (Railway/Render)
+# Use PostgreSQL if DATABASE_URL is provided (Railway/Render/Docker)
 if os.environ.get('DATABASE_URL'):
     import dj_database_url
-    DATABASES['default'] = dj_database_url.config(default=os.environ.get('DATABASE_URL'))
+    db_url = os.environ.get('DATABASE_URL')
+    # Handle SQLite URLs from DATABASE_URL
+    if 'sqlite' in db_url.lower():
+        # Extract path from sqlite:///path/to/db.sqlite3
+        db_path = db_url.replace('sqlite:///', '')
+        DATABASES['default'] = {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': db_path,
+        }
+    else:
+        # Use dj_database_url for PostgreSQL and other databases
+        DATABASES['default'] = dj_database_url.config(default=db_url)
 # Or use individual PostgreSQL settings if provided
 elif os.environ.get('DB_HOST'):
     DATABASES = {

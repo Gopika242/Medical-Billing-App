@@ -118,10 +118,11 @@ DATABASES = {
     }
 }
 
-# Use PostgreSQL if DATABASE_URL is provided (Railway/Render/Docker)
-if os.environ.get('DATABASE_URL'):
+# Use PostgreSQL if DATABASE_URL or POSTGRES_URL is provided (Railway/Render/Docker/Vercel)
+db_url = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
+
+if db_url:
     import dj_database_url
-    db_url = os.environ.get('DATABASE_URL')
     # Handle SQLite URLs from DATABASE_URL
     if 'sqlite' in db_url.lower():
         # Extract path from sqlite:///path/to/db.sqlite3
@@ -132,7 +133,7 @@ if os.environ.get('DATABASE_URL'):
         }
     else:
         # Use dj_database_url for PostgreSQL and other databases
-        DATABASES['default'] = dj_database_url.config(default=db_url)
+        DATABASES['default'] = dj_database_url.config(default=db_url, conn_max_age=600)
 # Or use individual PostgreSQL settings if provided
 elif os.environ.get('DB_HOST'):
     DATABASES = {
